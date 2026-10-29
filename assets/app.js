@@ -89,7 +89,12 @@
 
   /* ---------- Helpers ---------- */
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function ar(t, tag) { return t ? '<' + (tag || 'p') + ' class="ar" lang="ar" dir="rtl">' + t + '</' + (tag || 'p') + '>' : ''; }
+  // {{name}} and {{g:he-form|she-form}} templates, so Arabic hints can address the student correctly.
+  function T(s) {
+    var nm = esc(S.name || 'friend'), f = S.gender === 'f';
+    return String(s == null ? '' : s).replace(/\{\{name\}\}/g, nm).replace(/\{\{g:([^|}]*)\|([^}]*)\}\}/g, function (m, a, b) { return f ? b : a; });
+  }
+  function ar(t, tag) { return t ? '<' + (tag || 'p') + ' class="ar" lang="ar" dir="rtl">' + T(t) + '</' + (tag || 'p') + '>' : ''; }
   function h(html) { var d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild; }
   function pct(x) { return Math.round(x * 100) + '%'; }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
@@ -255,7 +260,8 @@
           var ok = i === ex.answer;
           opts.querySelectorAll('.opt').forEach(function (x, k) { x.disabled = true; if (k === ex.answer) x.classList.add('right'); });
           if (!ok) b.classList.add('wrong');
-          fb.innerHTML = '<div class="feedback ' + (ok ? 'ok' : 'bad') + '"><b>' + (ok ? 'Correct!' : 'Not quite.') + '</b> ' + (ex.explain || '') + ar(ex.explainAr) + '</div>';
+          fb.innerHTML = '<div class="feedback ' + (ok ? 'ok' : 'bad') + '"><b>' + (ok ? 'Correct!' : 'Not quite.') + '</b> ' + T(ex.explain || '') +
+            (!ok && ex.hint ? '<div><i>Hint: ' + T(ex.hint) + '</i></div>' : '') + ar(ex.explainAr) + '</div>';
           result(ok);
           var retry = h('<button type="button" class="btn sm ghost" style="margin-top:6px">Try again</button>');
           if (!ok) { retry.onclick = function () { opts.querySelectorAll('.opt').forEach(function (x) { x.disabled = false; x.classList.remove('right', 'wrong'); }); fb.innerHTML = ''; }; fb.appendChild(retry); }
@@ -413,16 +419,51 @@
   }
 
   /* ---------- Blocks ---------- */
+  // "Read it like a programmer": one row per code line with its explanation.
+  function linesBlock(b) {
+    var rows = (b.rows || []).map(function (r) { return '<tr><td><code class="ln">' + esc(r[0]) + '</code></td><td>' + T(r[1]) + '</td></tr>'; }).join('');
+    return h('<div class="block"><b>' + T(b.title || 'Read it like a programmer') + '</b><div class="tbl-wrap"><table class="tbl lines"><tbody>' + rows + '</tbody></table></div>' + ar(b.ar) + '</div>');
+  }
+
+  // A worked example revealed one step at a time, ending with the whole runnable program.
+  function stepsBlock(b) {
+    var el = h('<div class="block card steps"><span class="lbl">Worked example</span><b>' + T(b.title) + '</b><div class="steps-problem">' + T(b.problem || '') + '</div><ol class="steps-list"></ol></div>');
+    var list = el.querySelector('.steps-list'), i = 0, steps = b.steps || [];
+    var btn = h('<button class="btn primary sm" type="button">Next step</button>');
+    function showNext() {
+      var s = steps[i], li = h('<li>' + T(s.en) + '</li>');
+      if (s.code) li.appendChild(codeBlock({ code: s.code }));
+      list.appendChild(li); i++;
+      if (i < steps.length) { btn.textContent = 'Next step (' + (i + 1) + ' of ' + steps.length + ')'; return; }
+      btn.remove();
+      el.appendChild(h('<b class="steps-final">The whole program</b>'));
+      el.appendChild(codeBlock({ code: b.code, run: true, stdin: b.stdin, out: b.out }));
+      if (b.ar) el.appendChild(h(ar(b.ar)));
+    }
+    btn.onclick = showNext;
+    if (steps.length) { showNext(); if (i < steps.length) el.appendChild(btn); } else el.appendChild(codeBlock({ code: b.code, run: true, stdin: b.stdin, out: b.out }));
+    return el;
+  }
+
   function block(b) {
     switch (b.type || b.t) {
-      case 'h': return h('<h3>' + b.en + '</h3>');
-      case 'p': return h('<div class="block"><p style="margin:0">' + b.en + '</p>' + ar(b.ar) + '</div>');
+      case 'h': return h('<h3>' + T(b.en) + '</h3>');
+      case 'p': return h('<div class="block"><p style="margin:0">' + T(b.en) + '</p>' + ar(b.ar) + '</div>');
       case 'code': return codeBlock(b);
+      case 'analogy': return h('<div class="block analogy"><span class="lbl">Think of it like this</span><b>' + T(b.title) + '</b><p>' + T(b.en) + '</p>' + ar(b.ar) + '</div>');
+      case 'lines': return linesBlock(b);
+      case 'steps': return stepsBlock(b);
+      case 'check': {
+        var card = exercise({ t: 'mcq', q: b.q, qAr: b.qAr, code: b.code, options: b.options, answer: b.answer, explain: b.explain, explainAr: b.ar, hint: b.hint }, null);
+        card.classList.add('quickcheck');
+        card.querySelector('.ex-kind').textContent = 'Quick check';
+        return card;
+      }
       case 'note': {
         var lbl = { tip: 'Tip', warn: 'Watch out', exam: 'Exam trap' }[b.kind] || 'Note';
-        return h('<div class="block note ' + esc(b.kind || 'tip') + '"><span class="lbl">' + lbl + '</span>' + b.en + ar(b.ar) + '</div>');
+        return h('<div class="block note ' + esc(b.kind || 'tip') + '"><span class="lbl">' + lbl + '</span>' + T(b.en) + ar(b.ar) + '</div>');
       }
-      case 'list': return h('<div class="block"><ul>' + (b.items || []).map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul>' + ar(b.ar) + '</div>');
+      case 'list': return h('<div class="block"><ul>' + (b.items || []).map(function (i) { return '<li>' + T(i) + '</li>'; }).join('') + '</ul>' + ar(b.ar) + '</div>');
       case 'table': return h('<div class="block tbl-wrap"><table class="tbl"><thead><tr>' + (b.head || []).map(function (c) { return '<th>' + c + '</th>'; }).join('') +
         '</tr></thead><tbody>' + (b.rows || []).map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>');
       default: return h('<div></div>');
@@ -524,12 +565,27 @@
     setTitle(l.title);
     var root = view(crumbs([['Home', '#/'], [C.code, '#/c/' + u.course], ['Unit ' + u.n, '#/u/' + u.id], ['Lesson ' + l.n]]) +
       '<article class="narrow lesson"><div class="lesson-head"><span class="pill accent">' + C.code + ' · Unit ' + u.n + ' · Lesson ' + l.n + '</span>' +
-      '<h1 style="margin-top:8px">' + esc(l.title) + '</h1>' + ar(l.titleAr) + '</div><div id="body"></div>' +
+      '<h1 style="margin-top:8px">' + esc(l.title) + '</h1>' + ar(l.titleAr) +
+      '<p class="muted small" style="margin:6px 0 0">Take your time. Read each part, run the examples, and answer the quick checks. Mistakes are a normal part of learning.</p>' +
+      ar('خذ{{g:|ي}} وقتك. اقرأ{{g:|ي}} الفكرة، جرّب{{g:|ي}} الكود، وأجب{{g:|ي}} عن الأسئلة السريعة. الأخطاء جزء طبيعي من التعلم.') +
+      '</div><div id="body"></div><div id="after"></div>' +
       '<h2>Practice</h2><p class="muted small">Solve these to lock in the idea. Code exercises run on a real Java compiler.</p>' + ar('حل التمارين لتثبيت الفكرة.') +
       '<div id="practice"></div><h2>My notes</h2><textarea class="notes-box" id="notes" placeholder="Write what you want to remember… / اكتب ملاحظاتك هنا"></textarea>' +
       '<div class="lesson-foot" id="foot"></div></article>');
     var body = root.querySelector('#body');
     (l.body || []).forEach(function (b) { body.appendChild(block(b)); });
+    var after = root.querySelector('#after');
+    if ((l.mistakes || []).length) {
+      after.appendChild(h('<h2>Common mistakes</h2>'));
+      l.mistakes.forEach(function (m) {
+        after.appendChild(h('<div class="block note warn"><span class="lbl">' + T(m.title) + '</span>' + T(m.en) + ar(m.ar) + '</div>'));
+        if (m.code) after.appendChild(codeBlock({ code: m.code }));
+      });
+    }
+    if ((l.remember || []).length) {
+      after.appendChild(h('<h2>Remember</h2>'));
+      after.appendChild(h('<div class="block note tip"><ul>' + l.remember.map(function (i) { return '<li>' + T(i) + '</li>'; }).join('') + '</ul>' + ar(l.rememberAr) + '</div>'));
+    }
     var pr = root.querySelector('#practice');
     (l.practice || []).forEach(function (ex, i) { pr.appendChild(exercise(ex, l.id + '-p' + i)); });
     if (!(l.practice || []).length) pr.innerHTML = '<p class="muted">No exercises for this lesson.</p>';
@@ -769,10 +825,12 @@
       '<p class="muted">Two levels of Java — CS101 then CS102 — with lessons, self-checking exercises and a real compiler.</p>' +
       ar('أهلًا بك! اكتب اسمك ليظهر في الصفحة الرئيسية وعلى الشهادة.') +
       '<label for="nm"><b>Your first name</b></label><input id="nm" maxlength="40" autocomplete="given-name" placeholder="e.g. Sara">' +
+      '<label for="gd"><b>Arabic hints address you as</b></label><select id="gd" class="search" style="margin:6px 0 14px"><option value="m">طالب (he)</option><option value="f">طالبة (she)</option></select>' +
       '<div class="row"><button class="btn primary" type="submit">Start learning</button><button class="btn ghost" type="button" id="skip">Skip</button></div></form></div>');
     var inp = bg.querySelector('#nm'); inp.value = S.name || '';
+    var gd = bg.querySelector('#gd'); gd.value = S.gender === 'f' ? 'f' : 'm';
     var close = function () { S.onboarded = 1; save(); bg.remove(); route(); };
-    bg.querySelector('form').onsubmit = function (e) { e.preventDefault(); S.name = inp.value.trim(); close(); };
+    bg.querySelector('form').onsubmit = function (e) { e.preventDefault(); S.name = inp.value.trim(); S.gender = gd.value; close(); };
     bg.querySelector('#skip').onclick = close;
     document.body.appendChild(bg);
     setTimeout(function () { inp.focus(); }, 30);
