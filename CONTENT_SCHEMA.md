@@ -33,7 +33,39 @@ JP.unit({
 });
 ```
 
+## Audience: slow learners with no programming background
+
+Write as if the student has never programmed and learns slowly. Every idea follows this pattern:
+
+1. `h` — short heading (one idea per heading).
+2. `p` — **why**: what problem does this idea solve? 2–3 short sentences, a real situation (marks, prices in riyals, a timetable, a coffee order, a library).
+3. `analogy` — an everyday picture of the idea (at least 2 per lesson).
+4. `code` — a SMALL example (3–8 lines) with exactly **one** new idea. Never six new things in one block; split it.
+5. `lines` — read the key example line by line ("Read it like a programmer").
+6. `p` with `ar` — a short Arabic hint after each key idea (simple Arabic, 1–2 sentences).
+7. `check` — one quick multiple-choice question before moving on.
+
+Plus per lesson: at least one `steps` worked example (problem → 3–6 small steps → whole runnable program),
+`mistakes` (3–4 common mistakes, with the wrong code and why), `remember` (4–6 bullets) and `rememberAr`.
+Use plain words (about B1 English), short sentences, friendly second person. Explain every new word the first time it appears.
+Do not use an idea before the unit/lesson that teaches it. Prefer MORE and SHORTER lessons (20–30 minutes each) over long ones:
+split a lesson when it covers more than 3 ideas. Practice starts easy: the first two exercises are warm-ups (`mcq`/`output` on tiny code),
+then `fill`/`order`, then `code`.
+Arabic uses the gender template: `{{g:he-form|she-form}}` e.g. `انتبه{{g:|ي}}`, `{{g:أحسنت|أحسنتِ}}`, and `{{name}}` for the student's name.
+Typical size: 700–1100 words of explanation per lesson (not counting code).
+
 ## Blocks (lesson `body`)
+
+Extra block types for the slow-learner pattern:
+
+| type | fields | notes |
+|---|---|---|
+| `analogy` | `title`, `en`, optional `ar` | everyday picture of the idea |
+| `lines` | `title` (optional), `rows`: `[[codeLine, explanationHtml], ...]`, optional `ar` | `codeLine` is plain text (no J needed for one line) |
+| `check` | `q`, optional `code`, `options`, `answer`, `explain`, optional `hint`, optional `ar` | one quick multiple-choice question |
+| `steps` | `title`, `problem`, `steps`: `[{ en, code? }, ...]`, `code` (the whole program, complete with Main), optional `stdin`, `out`, `ar` | steps appear one by one, then the full program with Run |
+
+Lesson-level fields (next to `title`, `body`, `practice`): `mistakes: [{ title, en, code?, ar? }]`, `remember: [html, ...]`, `rememberAr`.
 
 Each block is an object whose `type` field names its kind, e.g. `{ type: 'p', en: '...', ar: '...' }`.
 
