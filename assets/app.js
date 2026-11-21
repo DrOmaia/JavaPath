@@ -491,6 +491,8 @@
     var frames = b.frames && b.frames.length ? b.frames : [{ label: b.label, vars: b.vars, objects: b.objects }];
     var colour = {}, nextC = 0;
     frames.forEach(function (f) { (f.objects || []).forEach(function (o) { if (!(o.id in colour)) colour[o.id] = nextC++ % MEM_COLOURS; }); });
+    // Pictures with variables only (early CS101) show just the variables column.
+    var hasObjects = nextC > 0;
     function val(x) {
       if (x.ref != null) return '<span class="mem-ref c' + (colour[x.ref] || 0) + '" title="refers to object ' + esc(x.ref) + '">→ ' + esc(x.ref) + '</span>';
       var v = x.value == null ? '' : String(x.value);
@@ -506,8 +508,10 @@
           (o.gone ? '<span class="mem-gone">no reference: garbage</span>' : '') + '</div>' + (fields || '<div class="muted small">no fields</div>') + '</div>';
       }).join('') || '<div class="muted small">No objects yet</div>';
       return (f.label ? '<div class="mem-label">' + T(f.label) + '</div>' : '') +
-        '<div class="mem-cols"><div><div class="mem-col-h">Variables <span>(stack)</span></div>' + vars + '</div>' +
-        '<div><div class="mem-col-h">Objects <span>(heap)</span></div>' + objs + '</div></div>';
+        (hasObjects
+          ? '<div class="mem-cols"><div><div class="mem-col-h">Variables <span>(stack)</span></div>' + vars + '</div>' +
+            '<div><div class="mem-col-h">Objects <span>(heap)</span></div>' + objs + '</div></div>'
+          : '<div class="mem-vars-only"><div class="mem-col-h">Variables</div>' + vars + '</div>');
     }
     var el = h('<div class="block card memory"><span class="lbl">Memory picture</span>' + (b.title ? '<b>' + T(b.title) + '</b>' : '') +
       (b.en ? '<p class="mem-intro">' + T(b.en) + '</p>' : '') + '</div>');

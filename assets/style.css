@@ -305,3 +305,4 @@ code.ln { background: none; padding: 0; white-space: pre-wrap; word-break: break
 .mem-obj.c4, .mem-ref.c4 { border-color: #8a5a00; } .mem-ref.c4, .mem-obj.c4 .mem-obj-h b { background: #8a5a00; color: #fff; }
 .mem-obj.c5, .mem-ref.c5 { border-color: #0f7680; } .mem-ref.c5, .mem-obj.c5 .mem-obj-h b { background: #0f7680; color: #fff; }
 .memory > .ar { margin: 10px 0 0; }
+.mem-vars-only { max-width: 360px; }
