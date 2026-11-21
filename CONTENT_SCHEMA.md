@@ -1,6 +1,6 @@
 # JavaPath content format
 
-Each unit is one file: `content/<course>-u<n>.js` (e.g. `content/cs101-u3.js`).
+Each unit is one file: `content/<course>-u<key>.js` (e.g. `content/cs101-u3.js`; `key` defaults to `n`).
 Files are plain browser scripts (no modules, no build step). Each file calls `JP.unit({...})` once.
 
 `J` is `String.raw` with automatic dedent + trim. **Always** write code with ``J`...` `` so that
@@ -142,6 +142,22 @@ Rules for `code` exercises and `run: true` blocks:
 - Each lesson: 8–20 blocks, at least 2 code examples, at least one `note`, and 4–6 practice exercises mixing types,
   with at least one `code` exercise per unit outside the lab.
 - Use realistic, varied examples (grades, prices, temperatures, students, bank accounts…) — not only `foo`/`bar`.
+
+## The manifest: units load only when opened
+
+`index.html` does not load the unit files. It loads `content/manifest.js`, a small generated list of every unit
+(titles, lesson list, number of exercises and quiz questions, lab title). A unit's full file is loaded only when a
+student opens one of its lessons, its quiz or its lab (or the glossary, cheat sheets or review need it).
+
+**After every change to a file in `content/`, run:**
+
+```bash
+node tools/build-manifest.js
+```
+
+It rebuilds `content/manifest.js` (every `content/cs<course>-u<key>.js` file is picked up automatically) and updates
+its `?v=` in `index.html`. Each unit file gets its own version from its content, so students never get an old copy.
+`node tools/build-manifest.js --check` only checks; the content checker below also fails while the manifest is out of date.
 
 ## Checking a unit before you publish
 

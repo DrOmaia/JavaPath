@@ -600,6 +600,7 @@
       tool('#/help', 'Setup & help', 'Install Java and NetBeans, back up progress.', 'تثبيت Java وNetBeans وحفظ التقدم') +
       '</div>';
     view(html);
+    if (nx) prefetch(nx.unit);
   }
   function tool(href, t, d, a) { return '<a href="' + href + '"><div class="card"><b>' + t + '</b><div class="muted small">' + d + '</div>' + ar(a) + '</div></a>'; }
 
@@ -625,6 +626,7 @@
     });
     html += '</div>';
     view(html);
+    if (nx) prefetch(nx.unit);
   }
 
   function viewUnit(id) {
@@ -647,6 +649,7 @@
     html += '<div class="lesson-foot">' + (i > 0 ? '<a class="btn" href="#/u/' + us[i - 1].id + '">← Unit ' + us[i - 1].n + '</a>' : '<span></span>') +
       (i < us.length - 1 ? '<a class="btn" href="#/u/' + us[i + 1].id + '">Unit ' + us[i + 1].n + ' →</a>' : '') + '</div></div>';
     view(html);
+    prefetch(u);
   }
 
   function viewLesson(id) {
@@ -936,21 +939,40 @@
   };
   document.getElementById('menu').onclick = function () { document.getElementById('nav').classList.toggle('open'); };
 
+  // At start only content/manifest.js is loaded: titles and counts of every unit. Pages that show
+  // lessons, exercises, quizzes, labs, the glossary or cheat sheets need the full unit files:
+  // load them first (each file is loaded once), then draw the page.
+  function withUnits(units, draw) {
+    units = units.filter(Boolean);
+    if (units.every(function (u) { return u.loaded; })) return draw();
+    var hash = location.hash;
+    view('<div class="card empty loading">Loading…' + ar('جارٍ التحميل…') + '</div>');
+    JP.load(units).then(function () { if (location.hash === hash) draw(); }, function () {
+      if (location.hash !== hash) return;
+      var root = view('<div class="card empty"><h2>Could not load this page</h2><p>Check your internet connection, then try again.</p>' +
+        ar('تعذّر التحميل. تحقّق{{g:|ي}} من الاتصال بالإنترنت ثم حاول{{g:|ي}} مرة أخرى.') + '<button class="btn primary" type="button" id="retry">Try again</button></div>');
+      root.querySelector('#retry').onclick = route;
+    });
+  }
+  function prefetch(u) { if (u && !u.loaded) JP.load([u]).catch(function () { /* loaded again when opened */ }); }
+  function startedUnits() { return JP.units.filter(function (u) { return (u.lessons || []).some(function (l) { return S.lessons[l.id]; }); }); }
+
   function route() {
     var p = (location.hash.replace(/^#\/?/, '') || '').split('/');
     document.getElementById('nav').classList.remove('open');
     document.querySelectorAll('#nav a').forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#/' + p.slice(0, 2).join('/') || a.getAttribute('href') === '#/' + p[0]); });
+    var f, u;
     switch (p[0]) {
       case '': return viewHome();
       case 'c': return viewCourse(p[1]);
       case 'u': return viewUnit(p[1]);
-      case 'l': return viewLesson(p[1]);
-      case 'quiz': return viewQuiz(p[1]);
-      case 'lab': return viewLab(p[1]);
+      case 'l': f = lessonById(p[1]); return f ? withUnits([f.unit], function () { viewLesson(p[1]); }) : notFound();
+      case 'quiz': u = unitById(p[1]); return u ? withUnits([u], function () { viewQuiz(p[1]); }) : notFound();
+      case 'lab': u = unitById(p[1]); return u ? withUnits([u], function () { viewLab(p[1]); }) : notFound();
       case 'play': return viewPlay();
-      case 'review': return viewReview();
-      case 'glossary': return viewGlossary();
-      case 'cheats': return viewCheats(p[1] || 'cs101');
+      case 'review': return withUnits(startedUnits(), viewReview);
+      case 'glossary': return withUnits(JP.units.slice(), viewGlossary);
+      case 'cheats': return withUnits(unitsOf(p[1] || 'cs101'), function () { viewCheats(p[1] || 'cs101'); });
       case 'notes': return viewNotes();
       case 'cert': return viewCert(p[1]);
       case 'help': return viewHelp();

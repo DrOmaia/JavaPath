@@ -23,7 +23,9 @@ You can also open `index.html` directly from your computer; everything works exc
 ## Edit or add content
 
 Each unit is one file in `content/` (e.g. `content/cs101-u3.js`). The format is described in
-[`CONTENT_SCHEMA.md`](CONTENT_SCHEMA.md). To add a unit, create the file and add a `<script>` line for it in `index.html`.
+[`CONTENT_SCHEMA.md`](CONTENT_SCHEMA.md). To add a unit, create the file, then run `node tools/build-manifest.js`.
+The site first loads only `content/manifest.js` (a small list of all units, rebuilt by that command) and loads each
+unit's file when a student opens it, so the first visit stays light on phones.
 Before publishing, check a unit with `node tools/verify-content.js . content/<file>.js` (needs Node and a JDK):
 it compiles and runs every Java program in the unit and compares the outputs.
 

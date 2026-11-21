@@ -174,6 +174,9 @@ function checkUnit(u, file) {
     }
   }
   await Promise.all(Array.from({ length: pool }, worker));
+  // The site loads content/manifest.js first; it must match the content files.
+  const mf = require('child_process').spawnSync('node', [path.join(repo, 'tools/build-manifest.js'), '--check'], { encoding: 'utf8' });
+  if (mf.status !== 0) problems.push('content/manifest.js is out of date: run  node tools/build-manifest.js');
   warnings.forEach(w => console.log('warn  ' + w));
   problems.forEach(p => console.log('FAIL  ' + p));
   console.log(`\n${ran} programs run, ${skipped} snippets skipped, ${warnings.length} warnings, ${problems.length} problems.`);
