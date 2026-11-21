@@ -24,8 +24,11 @@
   JP.unit = function (u) {
     try {
       if (!u || !u.course || !u.n) throw new Error('unit needs course and n');
-      u.id = u.course + '-u' + u.n;
-      (u.lessons || []).forEach(function (l, i) { l.id = u.id + '-l' + (i + 1); l.n = i + 1; });
+      // n = position shown to the student ("Unit 4") and used for ordering.
+      // key = permanent storage id (file name, progress). Defaults to n. Keeping key fixed lets
+      // units and lessons be re-ordered without losing anyone's saved progress.
+      u.id = u.course + '-u' + (u.key || u.n);
+      (u.lessons || []).forEach(function (l, i) { l.id = u.id + '-l' + (l.key || i + 1); l.n = i + 1; });
       JP.units.push(u);
     } catch (e) {
       JP.errors.push(String(e));

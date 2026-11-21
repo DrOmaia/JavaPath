@@ -26,12 +26,37 @@ JP.unit({
       practice: [ /* exercises, see below — 4 to 6 per lesson */ ]
     }
   ],
-  quiz: [ /* 8–10 exercises, only 'mcq' and 'output' types */ ],
+  quiz: [ /* 8–12 exercises, only 'mcq', 'output' and 'bug' types */ ],
   lab: { /* exactly one exercise of type 'code' — the unit's mini project */ },
   cheats: [ { code: J`if (x > 0) { ... }`, note: 'Runs the block only when the condition is true' } ],
   glossary: [ { term: 'Boolean expression', ar: 'تعبير منطقي', def: 'An expression whose value is true or false.' } ]
 });
 ```
+
+## Unit order and permanent keys
+
+`n` is the number the student sees ("Unit 4") and decides the order. `key` is the permanent storage id: it names the
+file (`cs102-u<key>.js`) and the saved progress (`cs102-u<key>-l<lesson>`). When `key` is missing it equals `n`.
+Never change a unit's `key`. To move a unit, change only `n`.
+
+CS102 order today:
+
+| n | key / file | Unit |
+|---|---|---|
+| 1 | 1 | Two-Dimensional Arrays |
+| 2 | 2 | Class Design |
+| 3 | 8 | Building Systems from Several Classes |
+| 4 | 3 | Inheritance |
+| 5 | 4 | Polymorphism and Interfaces |
+| 6 | 9 | Exceptions and Testing |
+| 7 | 5 | Java Collections Framework |
+| 8 | 6 | Generics |
+| 9 | 7 | Recursion |
+
+Lessons work the same way: a lesson's progress id uses its position (`-l3`), unless it has `key`. If you insert a new
+lesson **before** existing ones, give every existing lesson after it `key: <its old number>` and give the new lesson a
+text key such as `key: 'n1'`, so students keep their progress. Add new practice exercises at the **end** of a
+lesson's `practice` list (their progress id is their position).
 
 ## Audience: slow learners with no programming background
 
@@ -65,6 +90,15 @@ Extra block types for the slow-learner pattern:
 | `check` | `q`, optional `code`, `options`, `answer`, `explain`, optional `hint`, optional `ar` | one quick multiple-choice question |
 | `steps` | `title`, `problem`, `steps`: `[{ en, code? }, ...]`, `code` (the whole program, complete with Main), optional `stdin`, `out`, `ar` | steps appear one by one, then the full program with Run |
 
+| `memory` | `title`, optional `en`, optional `code` (J), `frames`: `[{ label, vars, objects }]` (or one frame's `vars`/`objects` directly on the block), optional `ar` | memory picture: variables (stack) on the left, objects (heap) on the right; Back / Next steps through the frames |
+
+`memory` details. `vars`: `[{ name, type?, value? , ref? }]`. `objects`: `[{ id, cls, fields: [{ name, value?, ref? }], gone? }]`.
+`value` is shown as written (`'85'`, `'"Sara"'`, `'null'`). `ref` is the `id` of an object **in the same frame**
+(use short ids: `'A'`, `'B'`…); the object and every arrow to it get the same colour. `gone: true` shows an object with
+no references left (garbage). Use a memory picture whenever references matter: creating objects, `a = b` aliasing,
+`null`, objects inside objects, arrays of objects, passing an object to a method. 2–5 frames, one change per frame,
+`label` says which line just ran (e.g. `'After <code>Student b = a;</code>'`).
+
 Lesson-level fields (next to `title`, `body`, `practice`): `mistakes: [{ title, en, code?, ar? }]`, `remember: [html, ...]`, `rememberAr`.
 
 Each block is an object whose `type` field names its kind, e.g. `{ type: 'p', en: '...', ar: '...' }`.
@@ -90,6 +124,7 @@ Every exercise has `t` (type) and `q` (question, html allowed), optional `qAr`, 
 | `fill` | `code` (J) containing `___` (three underscores) for each blank, `answers`: array, one entry per blank; an entry may be a string or an array of accepted strings | exact match after trim |
 | `order` | `lines` (array of code lines in the **correct** order; indentation included) | lines are shuffled; student reorders |
 | `code` | `starter` (J), `tests`: `[{ stdin: '...', expected: '...' }]` (1–3 tests), `solution` (J), optional `hint` | runs on a real Java compiler online; stdout compared after trimming |
+| `bug` | `code` (J, 5–15 lines with exactly one bug), `bug` (1-based line number of the bug, or an array of accepted lines), `fix` (J, the corrected code), optional `hint` | the student taps the wrong line; then the explanation and the fixed code appear. Use real beginner bugs: `=` vs `==`, a missing `new`, a field shadowed by a parameter, `<=` off by one, comparing strings with `==`, a missing `super(...)`, catching in the wrong order… `explain` says what goes wrong when the code runs and why the fix works. Allowed in practice and in the quiz |
 
 Rules for `code` exercises and `run: true` blocks:
 - One file. The class with `main` must be `public class Main`. Helper classes go **below** it, without `public`.
@@ -107,3 +142,16 @@ Rules for `code` exercises and `run: true` blocks:
 - Each lesson: 8–20 blocks, at least 2 code examples, at least one `note`, and 4–6 practice exercises mixing types,
   with at least one `code` exercise per unit outside the lab.
 - Use realistic, varied examples (grades, prices, temperatures, students, bank accounts…) — not only `foo`/`bar`.
+
+## Checking a unit before you publish
+
+```bash
+node tools/verify-content.js . content/cs102-u8.js
+```
+
+The checker loads the unit like the site does, checks the structure above, then compiles and runs **every** Java
+program with the local JDK (`javac`/`java`): runnable blocks and worked examples against `out`, output exercises
+against `answer`, code exercises and the lab (solution against every test), solved fill/order exercises, and bug fixes.
+It must end with `0 problems`. Output exercises must be complete programs so they can be checked.
+A program that crashes on purpose (to show an exception) must not be `run: true` with an `out`; show it as a normal
+code block and put the error message in a `p`, `note` or `lines` block instead.

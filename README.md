@@ -3,10 +3,11 @@
 Learn Java in two levels:
 
 - **CS101 — Computer Programming I** (8 units): basics, selection, loops, methods, arrays, text files.
-- **CS102 — Computer Programming II** (7 units): 2D arrays, class design, inheritance, polymorphism and interfaces, collections, generics, recursion.
+- **CS102 — Computer Programming II** (9 units): 2D arrays, class design, building systems from several classes, inheritance, polymorphism and interfaces, exceptions and testing, collections, generics, recursion.
 
-Every unit has lessons (English with Arabic hints), practice exercises that check themselves
-(multiple choice, predict the output, fill in the blanks, put lines in order, write code), a quiz, and a lab.
+Every unit has lessons (English with Arabic hints), memory pictures that show variables and objects step by step,
+practice exercises that check themselves (multiple choice, predict the output, fill in the blanks, put lines in order,
+find the bug, write code), a quiz, and a lab.
 The **Run** buttons and code exercises use a real Java compiler through the free [Wandbox](https://wandbox.org) service.
 
 It is a static site: plain HTML, CSS and JavaScript with no build step.
@@ -23,6 +24,8 @@ You can also open `index.html` directly from your computer; everything works exc
 
 Each unit is one file in `content/` (e.g. `content/cs101-u3.js`). The format is described in
 [`CONTENT_SCHEMA.md`](CONTENT_SCHEMA.md). To add a unit, create the file and add a `<script>` line for it in `index.html`.
+Before publishing, check a unit with `node tools/verify-content.js . content/<file>.js` (needs Node and a JDK):
+it compiles and runs every Java program in the unit and compares the outputs.
 
 ---
 

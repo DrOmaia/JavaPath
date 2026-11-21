@@ -16,8 +16,8 @@
     cs102: {
       code: 'CS102', title: 'Computer Programming II', titleAr: 'البرمجة ٢',
       level: 'Level 2', levelAr: 'المستوى الثاني',
-      desc: 'Intermediate object-oriented programming: 2D arrays, class design, inheritance, polymorphism, interfaces, the Java Collections Framework, generics and recursion.',
-      descAr: 'البرمجة كائنية التوجه: المصفوفات الثنائية، تصميم الأصناف، الوراثة، تعدد الأشكال، الواجهات، المجموعات، الأنواع العامة والاستدعاء الذاتي.'
+      desc: 'Intermediate object-oriented programming: 2D arrays, class design, systems of several classes, inheritance, polymorphism, interfaces, exceptions and testing, the Java Collections Framework, generics and recursion.',
+      descAr: 'البرمجة كائنية التوجه: المصفوفات الثنائية، تصميم الأصناف، أنظمة من عدة أصناف، الوراثة، تعدد الأشكال، الواجهات، الاستثناءات والاختبار، المجموعات، الأنواع العامة والاستدعاء الذاتي.'
     }
   };
   var COURSE_IDS = ['cs101', 'cs102'];
@@ -231,7 +231,7 @@
   }
 
   /* ---------- Exercises ---------- */
-  var KIND = { mcq: 'Choose', output: 'Predict the output', fill: 'Fill in the blanks', order: 'Put in order', code: 'Write code' };
+  var KIND = { mcq: 'Choose', output: 'Predict the output', fill: 'Fill in the blanks', order: 'Put in order', code: 'Write code', bug: 'Find the bug' };
 
   function reveal(ex, answerHtml) {
     return '<div class="feedback bad"><b>Answer:</b>' + (answerHtml || '') + (ex.explain ? '<div>' + ex.explain + '</div>' : '') + ar(ex.explainAr) + '</div>';
@@ -358,6 +358,45 @@
       card.appendChild(list); card.appendChild(row3);
     }
 
+    else if (t === 'bug') {
+      // Tap the line that holds the bug. ex.bug = 1-based line number (or an array of accepted lines).
+      var bugs = [].concat(ex.bug).map(Number);
+      var srcLines = String(ex.code || '').split('\n');
+      var wrap = h('<div class="block bug-code" role="group" aria-label="Code lines: tap the line with the bug"></div>');
+      var wrongTries = 0, finished = false;
+      var showB = h('<button class="btn sm ghost" type="button">Show answer</button>');
+      var finish = function (ok) {
+        finished = true;
+        wrap.querySelectorAll('.bug-line').forEach(function (b, k) {
+          b.disabled = true;
+          if (bugs.indexOf(k + 1) >= 0) b.classList.add('right');
+        });
+        var head = ok ? '<b>Correct!</b> ' : '<b>Answer:</b> the bug is on line ' + bugs.join(' or ') + '. ';
+        fb.innerHTML = '<div class="feedback ' + (ok ? 'ok' : 'bad') + '">' + head + T(ex.explain || '') + ar(ex.explainAr) + '</div>';
+        if (ex.fix) { fb.appendChild(h('<div class="bug-fix-lbl">The fixed code</div>')); fb.appendChild(codeBlock({ code: ex.fix })); }
+        if (showB.parentNode) showB.parentNode.remove();
+        result(ok);
+      };
+      srcLines.forEach(function (line, k) {
+        var b = h('<button type="button" class="bug-line"><span class="bug-n">' + (k + 1) + '</span><pre>' + (highlight(line) || ' ') + '</pre></button>');
+        b.onclick = function () {
+          if (finished) return;
+          // A wrong tap was already reported, so a quiz still counts only the first try.
+          if (bugs.indexOf(k + 1) >= 0) { finish(true); return; }
+          wrongTries++;
+          b.classList.add('wrong'); b.disabled = true;
+          fb.innerHTML = '<div class="feedback bad"><b>Not this line.</b> This line is fine. Read the others slowly' +
+            (ex.hint && wrongTries >= 1 ? '<div><i>Hint: ' + T(ex.hint) + '</i></div>' : '.') + '</div>';
+          result(false);
+        };
+        wrap.appendChild(b);
+      });
+      card.appendChild(wrap);
+      showB.onclick = function () { if (!finished) finish(false); };
+      var row4 = h('<div class="row"></div>'); row4.appendChild(showB);
+      card.appendChild(row4);
+    }
+
     else if (t === 'code') {
       var draftKey = key ? 'jp.draft.' + key : null;
       var draft = null;
@@ -445,8 +484,55 @@
     return el;
   }
 
+  // Memory picture: variables on the left, objects on the right; a reference shows the object's
+  // letter in the object's colour. Several frames = step through the code with Back / Next.
+  var MEM_COLOURS = 6;
+  function memoryBlock(b) {
+    var frames = b.frames && b.frames.length ? b.frames : [{ label: b.label, vars: b.vars, objects: b.objects }];
+    var colour = {}, nextC = 0;
+    frames.forEach(function (f) { (f.objects || []).forEach(function (o) { if (!(o.id in colour)) colour[o.id] = nextC++ % MEM_COLOURS; }); });
+    function val(x) {
+      if (x.ref != null) return '<span class="mem-ref c' + (colour[x.ref] || 0) + '" title="refers to object ' + esc(x.ref) + '">→ ' + esc(x.ref) + '</span>';
+      var v = x.value == null ? '' : String(x.value);
+      return v === 'null' ? '<span class="mem-null">null</span>' : '<span class="mem-val">' + esc(v) + '</span>';
+    }
+    function frameHtml(f) {
+      var vars = (f.vars || []).map(function (v) {
+        return '<div class="mem-var"><span class="mem-name">' + (v.type ? '<i>' + esc(v.type) + '</i> ' : '') + esc(v.name) + '</span>' + val(v) + '</div>';
+      }).join('') || '<div class="muted small">—</div>';
+      var objs = (f.objects || []).map(function (o) {
+        var fields = (o.fields || []).map(function (fl) { return '<div class="mem-field"><span class="mem-name">' + esc(fl.name) + '</span>' + val(fl) + '</div>'; }).join('');
+        return '<div class="mem-obj c' + (colour[o.id] || 0) + (o.gone ? ' gone' : '') + '"><div class="mem-obj-h"><b>' + esc(o.id) + '</b><span>' + esc(o.cls || '') + '</span>' +
+          (o.gone ? '<span class="mem-gone">no reference: garbage</span>' : '') + '</div>' + (fields || '<div class="muted small">no fields</div>') + '</div>';
+      }).join('') || '<div class="muted small">No objects yet</div>';
+      return (f.label ? '<div class="mem-label">' + T(f.label) + '</div>' : '') +
+        '<div class="mem-cols"><div><div class="mem-col-h">Variables <span>(stack)</span></div>' + vars + '</div>' +
+        '<div><div class="mem-col-h">Objects <span>(heap)</span></div>' + objs + '</div></div>';
+    }
+    var el = h('<div class="block card memory"><span class="lbl">Memory picture</span>' + (b.title ? '<b>' + T(b.title) + '</b>' : '') +
+      (b.en ? '<p class="mem-intro">' + T(b.en) + '</p>' : '') + '</div>');
+    if (b.code) el.appendChild(codeBlock({ code: b.code }));
+    var stage = h('<div class="mem-stage" aria-live="polite"></div>');
+    el.appendChild(stage);
+    var i = 0;
+    var nav = h('<div class="row mem-nav"><button class="btn sm" type="button">← Back</button><span class="muted small"></span><button class="btn sm primary" type="button">Next →</button></div>');
+    var back = nav.children[0], count = nav.children[1], next = nav.children[2];
+    function draw() {
+      stage.innerHTML = frameHtml(frames[i]);
+      count.textContent = 'Step ' + (i + 1) + ' of ' + frames.length;
+      back.disabled = i === 0; next.disabled = i === frames.length - 1;
+    }
+    back.onclick = function () { if (i > 0) { i--; draw(); } };
+    next.onclick = function () { if (i < frames.length - 1) { i++; draw(); } };
+    draw();
+    if (frames.length > 1) el.appendChild(nav);
+    if (b.ar) el.appendChild(h(ar(b.ar)));
+    return el;
+  }
+
   function block(b) {
     switch (b.type || b.t) {
+      case 'memory': return memoryBlock(b);
       case 'h': return h('<h3>' + T(b.en) + '</h3>');
       case 'p': return h('<div class="block"><p style="margin:0">' + T(b.en) + '</p>' + ar(b.ar) + '</div>');
       case 'code': return codeBlock(b);
@@ -693,7 +779,7 @@
       var started = (u.lessons || []).some(function (l) { return S.lessons[l.id]; });
       if (!started) return;
       (u.quiz || []).forEach(function (q) { pool.push({ u: u, q: q }); });
-      (u.lessons || []).forEach(function (l) { if (S.lessons[l.id]) (l.practice || []).forEach(function (q) { if (q.t === 'mcq' || q.t === 'output') pool.push({ u: u, q: q }); }); });
+      (u.lessons || []).forEach(function (l) { if (S.lessons[l.id]) (l.practice || []).forEach(function (q) { if (q.t === 'mcq' || q.t === 'output' || q.t === 'bug') pool.push({ u: u, q: q }); }); });
     });
     var root = view(crumbs([['Home', '#/'], ['Review']]) + '<div class="narrow"><h1>Review</h1>' + ar('أسئلة عشوائية من الوحدات التي بدأتها.') + '<div id="rv"></div></div>');
     var box = root.querySelector('#rv');
